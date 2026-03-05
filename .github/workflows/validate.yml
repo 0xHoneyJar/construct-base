@@ -30,7 +30,10 @@ jobs:
 
       - name: Install yq
         run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          YQ_VERSION="v4.44.6"
+          YQ_SHA256="0c2b24e645b57d8e7c0566d18643a6d4f5580feeea3878127354a46f2a1e4598"
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          echo "${YQ_SHA256}  /usr/local/bin/yq" | sha256sum --check --strict
           sudo chmod +x /usr/local/bin/yq
 
       - name: Validate construct.yaml is valid YAML
@@ -72,6 +75,20 @@ jobs:
             done
           done
 
+          # Check repository fields for placeholder values
+          repo_url=$(yq '.repository.url' construct.yaml)
+          repo_homepage=$(yq '.repository.homepage' construct.yaml)
+          for placeholder in "${placeholders[@]}"; do
+            if [[ "$repo_url" != "null" && "$repo_url" == *"$placeholder"* ]]; then
+              echo "::error::Placeholder text found in construct.yaml repository.url: '$placeholder'"
+              errors=$((errors + 1))
+            fi
+            if [[ "$repo_homepage" != "null" && "$repo_homepage" == *"$placeholder"* ]]; then
+              echo "::error::Placeholder text found in construct.yaml repository.homepage: '$placeholder'"
+              errors=$((errors + 1))
+            fi
+          done
+
           # Check skill slugs for placeholder
           skill_count=$(yq '.skills | length' construct.yaml)
           for i in $(seq 0 $((skill_count - 1))); do
@@ -100,6 +117,13 @@ jobs:
           for i in $(seq 0 $((skill_count - 1))); do
             slug=$(yq ".skills[$i].slug" construct.yaml)
             path=$(yq ".skills[$i].path" construct.yaml)
+
+            # Reject path traversal
+            if [[ "$path" == *".."* || "$path" == /* ]]; then
+              echo "::error::Skill $slug has path traversal or absolute path: $path"
+              errors=$((errors + 1))
+              continue
+            fi
 
             if [[ ! -d "$path" ]]; then
               echo "::error::Skill directory not found: $path (slug: $slug)"
@@ -158,7 +182,10 @@ jobs:
 
       - name: Install tools
         run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          YQ_VERSION="v4.44.6"
+          YQ_SHA256="0c2b24e645b57d8e7c0566d18643a6d4f5580feeea3878127354a46f2a1e4598"
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          echo "${YQ_SHA256}  /usr/local/bin/yq" | sha256sum --check --strict
           sudo chmod +x /usr/local/bin/yq
           sudo npm install -g ajv-cli ajv-formats 2>/dev/null
 
@@ -179,6 +206,11 @@ jobs:
             echo "::error::identity.persona path not set in construct.yaml"
             exit 1
           fi
+          # Reject path traversal
+          if [[ "$persona_path" == *".."* || "$persona_path" == /* ]]; then
+            echo "::error::identity.persona contains path traversal or absolute path: $persona_path"
+            exit 1
+          fi
           if [[ ! -f "$persona_path" ]]; then
             echo "::error::Persona file not found: $persona_path"
             exit 1
@@ -195,6 +227,11 @@ jobs:
           expertise_path=$(yq '.identity.expertise' construct.yaml)
           if [[ "$expertise_path" == "null" || -z "$expertise_path" ]]; then
             echo "::error::identity.expertise path not set in construct.yaml"
+            exit 1
+          fi
+          # Reject path traversal
+          if [[ "$expertise_path" == *".."* || "$expertise_path" == /* ]]; then
+            echo "::error::identity.expertise contains path traversal or absolute path: $expertise_path"
             exit 1
           fi
           if [[ ! -f "$expertise_path" ]]; then
@@ -308,7 +345,10 @@ jobs:
 
       - name: Install yq
         run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          YQ_VERSION="v4.44.6"
+          YQ_SHA256="0c2b24e645b57d8e7c0566d18643a6d4f5580feeea3878127354a46f2a1e4598"
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          echo "${YQ_SHA256}  /usr/local/bin/yq" | sha256sum --check --strict
           sudo chmod +x /usr/local/bin/yq
 
       - name: Verify quick_start references existing skill

@@ -36,7 +36,7 @@ skills:
 # Slash commands registered in the runtime
 # Each command maps to a markdown file under commands/
 commands:
-  - name: review
+  - name: quick-review
     path: commands/example-command.md
 
 # Repository metadata
