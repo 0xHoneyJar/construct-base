@@ -143,50 +143,68 @@
         "reads": {
           "type": "array",
           "items": {
-            "type": "object",
-            "required": ["subject"],
-            "properties": {
-              "subject": {
+            "oneOf": [
+              {
                 "type": "string",
-                "description": "Kafka/NATS topic subject. Three-segment dotted convention: {aggregate}.{noun}.{verb}."
+                "description": "Cycle-002 typed-stream convention: bare string naming the stream type (Intent, Operator-Model, Verdict, Artifact, Signal). Used by skill-packs that consume/emit typed streams without a Kafka subject."
               },
-              "schema": {
-                "type": "string",
-                "description": "Schema reference for the topic envelope (e.g. @freeside-quests/protocol#SubstrateStepSubmission)."
-              },
-              "narrows_to": {
-                "type": "string",
-                "description": "Per-construct schema reference that this construct narrows the envelope to."
+              {
+                "type": "object",
+                "required": ["subject"],
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "description": "Kafka/NATS topic subject. Three-segment dotted convention: {aggregate}.{noun}.{verb}."
+                  },
+                  "schema": {
+                    "type": "string",
+                    "description": "Schema reference for the topic envelope (e.g. @freeside-quests/protocol#SubstrateStepSubmission)."
+                  },
+                  "narrows_to": {
+                    "type": "string",
+                    "description": "Per-construct schema reference that this construct narrows the envelope to."
+                  }
+                },
+                "additionalProperties": true,
+                "description": "Substrate-construct convention: object naming Kafka subject + envelope schema + per-construct narrowing."
               }
-            },
-            "additionalProperties": true
+            ]
           }
         },
         "writes": {
           "type": "array",
           "items": {
-            "type": "object",
-            "required": ["subject"],
-            "properties": {
-              "subject": {
+            "oneOf": [
+              {
                 "type": "string",
-                "description": "Kafka/NATS topic subject this construct publishes to."
+                "description": "Cycle-002 typed-stream convention: bare string naming the stream type."
               },
-              "schema": {
-                "type": "string",
-                "description": "Schema reference for the topic envelope."
-              },
-              "from": {
-                "type": "string",
-                "description": "Per-construct schema reference that this construct broadens from."
+              {
+                "type": "object",
+                "required": ["subject"],
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "description": "Kafka/NATS topic subject this construct publishes to."
+                  },
+                  "schema": {
+                    "type": "string",
+                    "description": "Schema reference for the topic envelope."
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "Per-construct schema reference that this construct broadens from."
+                  }
+                },
+                "additionalProperties": true,
+                "description": "Substrate-construct convention: object naming Kafka subject + envelope schema + per-construct broadening."
               }
-            },
-            "additionalProperties": true
+            ]
           }
         }
       },
       "additionalProperties": true,
-      "description": "NATS/Kafka topic shape declarations for substrate-constructs. Reads/writes describe subject + envelope schema + per-construct narrowing."
+      "description": "Stream shape declarations. Two conventions admitted: cycle-002 bare-string typed-stream names (skill-packs · Intent/Verdict/Artifact/Signal/Operator-Model) AND substrate-construct objects (subject + envelope schema + per-construct narrowing). The oneOf preserves backward-compat with construct-creator and any future skill-pack riding the typed-streams primitive."
     },
     "commands": {
       "type": "array",
