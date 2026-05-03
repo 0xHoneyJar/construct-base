@@ -3,7 +3,7 @@
   "title": "Construct Pack Manifest",
   "description": "Schema for construct.yaml — the pack manifest for Loa constructs.",
   "type": "object",
-  "required": ["schema_version", "name", "slug", "version", "description", "skills"],
+  "required": ["schema_version", "name", "slug", "version", "description"],
   "properties": {
     "schema_version": {
       "type": "integer",
@@ -41,7 +41,7 @@
     },
     "skills": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "items": {
         "type": "object",
         "required": ["slug", "path"],
@@ -57,7 +57,154 @@
         },
         "additionalProperties": true
       },
-      "description": "Skills provided by this construct"
+      "description": "Skills provided by this construct. Optional for substrate-construct type (which ships executable Effect programs instead of markdown skills)."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["skill-pack", "tool-pack", "codex", "template", "substrate-construct"],
+      "description": "Construct archetype. skill-pack = markdown skills + slash commands. tool-pack = MCP tools. codex = knowledge base. template = scaffold. substrate-construct = executable Effect program (NEW · cycle 2026-05-03 substrate-integration)."
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": ["effect-ts", "vanilla-ts", "node"],
+          "description": "Runtime engine the executable expects. NEW for type:substrate-construct."
+        },
+        "engine_version": {
+          "type": "string",
+          "description": "Semver range for the runtime engine (e.g. ^3.10.0)."
+        },
+        "node_version": {
+          "type": "string",
+          "description": "Semver range for Node.js (e.g. >=20.0.0)."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Runtime declarations for substrate-constructs. Required when type is substrate-construct (enforced via allOf below)."
+    },
+    "executable": {
+      "type": "object",
+      "required": ["entry", "export"],
+      "properties": {
+        "entry": {
+          "type": "string",
+          "description": "Path to entrypoint module (e.g. src/index.ts)."
+        },
+        "export": {
+          "type": "string",
+          "description": "Named export to invoke (e.g. gradeLoreEssay)."
+        },
+        "protocol": {
+          "type": "object",
+          "properties": {
+            "input": {
+              "type": "string",
+              "description": "Effect Schema reference for input shape (e.g. src/protocol.ts#LoreEssayInput)."
+            },
+            "output": {
+              "type": "string",
+              "description": "Effect Schema reference for output shape (e.g. src/protocol.ts#LoreEssayOutput)."
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true,
+      "description": "Executable declarations for substrate-constructs. Required when type is substrate-construct."
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tag"],
+        "properties": {
+          "tag": {
+            "type": "string",
+            "description": "Effect Tag name (e.g. ModelRunner, Logger, Clock)."
+          },
+          "contract": {
+            "type": "string",
+            "description": "Path#export reference to the Tag definition."
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of what this Requirement is for."
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "Effect Requirements declared as typed dependencies. Runtime layer injects concrete implementations per pool/tier policy. Per OSTROM hexagonal port discipline + Effect-TS Requirements channel."
+    },
+    "streams": {
+      "type": "object",
+      "properties": {
+        "reads": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Cycle-002 typed-stream convention: bare string naming the stream type (Intent, Operator-Model, Verdict, Artifact, Signal). Used by skill-packs that consume/emit typed streams without a Kafka subject."
+              },
+              {
+                "type": "object",
+                "required": ["subject"],
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "description": "Kafka/NATS topic subject. Three-segment dotted convention: {aggregate}.{noun}.{verb}."
+                  },
+                  "schema": {
+                    "type": "string",
+                    "description": "Schema reference for the topic envelope (e.g. @freeside-quests/protocol#SubstrateStepSubmission)."
+                  },
+                  "narrows_to": {
+                    "type": "string",
+                    "description": "Per-construct schema reference that this construct narrows the envelope to."
+                  }
+                },
+                "additionalProperties": true,
+                "description": "Substrate-construct convention: object naming Kafka subject + envelope schema + per-construct narrowing."
+              }
+            ]
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Cycle-002 typed-stream convention: bare string naming the stream type."
+              },
+              {
+                "type": "object",
+                "required": ["subject"],
+                "properties": {
+                  "subject": {
+                    "type": "string",
+                    "description": "Kafka/NATS topic subject this construct publishes to."
+                  },
+                  "schema": {
+                    "type": "string",
+                    "description": "Schema reference for the topic envelope."
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "Per-construct schema reference that this construct broadens from."
+                  }
+                },
+                "additionalProperties": true,
+                "description": "Substrate-construct convention: object naming Kafka subject + envelope schema + per-construct broadening."
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": true,
+      "description": "Stream shape declarations. Two conventions admitted: cycle-002 bare-string typed-stream names (skill-packs · Intent/Verdict/Artifact/Signal/Operator-Model) AND substrate-construct objects (subject + envelope schema + per-construct narrowing). The oneOf preserves backward-compat with construct-creator and any future skill-pack riding the typed-streams primitive."
     },
     "commands": {
       "type": "array",
@@ -163,5 +310,18 @@
       "additionalProperties": true
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": { "const": "substrate-construct" }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["executable", "runtime"]
+      }
+    }
+  ]
 }

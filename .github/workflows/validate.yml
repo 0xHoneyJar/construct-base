@@ -55,6 +55,11 @@ jobs:
           echo "✓ All required fields present"
 
       - name: Reject placeholder strings
+        # Skip on construct-base itself — this is the template repo, placeholders
+        # like "your-name" and "your-org" are LOAD-BEARING here (they ARE the
+        # template's documented examples for downstream forks to customize).
+        # Bridgebuilder F2 (cycle 2026-05-03 · pre-existing failure since 2026-03-14).
+        if: github.repository != '0xHoneyJar/construct-base'
         run: |
           errors=0
           placeholders=("TODO:" "My Construct" "your-name" "your-org" "example-skill" "A brief description of what this construct does")
@@ -108,9 +113,18 @@ jobs:
         run: |
           errors=0
           skill_count=$(yq '.skills | length' construct.yaml)
+          construct_type=$(yq '.type' construct.yaml)
+
+          # substrate-construct packs ship executable Effect programs, not
+          # markdown skills — skills.minItems is 0 in the JSON Schema for
+          # this type. Bridgebuilder F3 (cycle 2026-05-03).
+          if [[ "$construct_type" == "substrate-construct" ]]; then
+            echo "✓ skill-directory validation skipped (type: substrate-construct)"
+            exit 0
+          fi
 
           if [[ "$skill_count" -lt 1 ]]; then
-            echo "::error::construct.yaml must declare at least one skill"
+            echo "::error::construct.yaml must declare at least one skill (skill-pack type)"
             exit 1
           fi
 
@@ -193,7 +207,7 @@ jobs:
         run: |
           # Convert construct.yaml to JSON for ajv
           yq -o=json construct.yaml > /tmp/construct.json
-          ajv validate -s schemas/construct.schema.json -d /tmp/construct.json --spec=draft2020 || {
+          ajv validate -s schemas/construct.schema.json -d /tmp/construct.json --spec=draft2020 -c=ajv-formats || {
             echo "::error::construct.yaml does not conform to schemas/construct.schema.json"
             exit 1
           }
@@ -216,7 +230,7 @@ jobs:
             exit 1
           fi
           yq -o=json "$persona_path" > /tmp/persona.json
-          ajv validate -s schemas/persona.schema.yaml -d /tmp/persona.json --spec=draft2020 || {
+          ajv validate -s schemas/persona.schema.yaml -d /tmp/persona.json --spec=draft2020 -c=ajv-formats || {
             echo "::error::$persona_path does not conform to schemas/persona.schema.yaml"
             exit 1
           }
@@ -239,7 +253,7 @@ jobs:
             exit 1
           fi
           yq -o=json "$expertise_path" > /tmp/expertise.json
-          ajv validate -s schemas/expertise.schema.yaml -d /tmp/expertise.json --spec=draft2020 || {
+          ajv validate -s schemas/expertise.schema.yaml -d /tmp/expertise.json --spec=draft2020 -c=ajv-formats || {
             echo "::error::$expertise_path does not conform to schemas/expertise.schema.yaml"
             exit 1
           }
