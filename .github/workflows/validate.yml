@@ -207,7 +207,7 @@ jobs:
         run: |
           # Convert construct.yaml to JSON for ajv
           yq -o=json construct.yaml > /tmp/construct.json
-          ajv validate -s schemas/construct.schema.json -d /tmp/construct.json --spec=draft2020 || {
+          ajv validate -s schemas/construct.schema.json -d /tmp/construct.json --spec=draft2020 -c=ajv-formats || {
             echo "::error::construct.yaml does not conform to schemas/construct.schema.json"
             exit 1
           }
@@ -230,7 +230,7 @@ jobs:
             exit 1
           fi
           yq -o=json "$persona_path" > /tmp/persona.json
-          ajv validate -s schemas/persona.schema.yaml -d /tmp/persona.json --spec=draft2020 || {
+          ajv validate -s schemas/persona.schema.yaml -d /tmp/persona.json --spec=draft2020 -c=ajv-formats || {
             echo "::error::$persona_path does not conform to schemas/persona.schema.yaml"
             exit 1
           }
@@ -253,7 +253,7 @@ jobs:
             exit 1
           fi
           yq -o=json "$expertise_path" > /tmp/expertise.json
-          ajv validate -s schemas/expertise.schema.yaml -d /tmp/expertise.json --spec=draft2020 || {
+          ajv validate -s schemas/expertise.schema.yaml -d /tmp/expertise.json --spec=draft2020 -c=ajv-formats || {
             echo "::error::$expertise_path does not conform to schemas/expertise.schema.yaml"
             exit 1
           }
